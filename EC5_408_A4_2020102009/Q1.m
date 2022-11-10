@@ -1,0 +1,295 @@
+%% Q1
+
+clc;
+clear;
+
+% Read audio file
+info = audioinfo("sed.wav");
+disp(info.Duration)
+
+% y is the signal amplitudes and has 16808 samples
+% Fs is the sampling rate that is 16000
+[y,Fs] = audioread('sed.wav');
+t = 0:1/Fs:info.Duration-1/Fs;
+
+% Difference the speech signal         
+for i = 2:length(y)
+    x(i) = y(i) - y(i-1) ; 
+end
+
+% Plot of the signal as well as the differenced speech signal 
+figure();
+plot(t,y);
+title('Speech Signal')
+xlabel('Time')
+ylabel('Amplitude')
+hold on
+plot(t,x);
+legend('Original Signal y[n]','Differenced Signal x[n]')
+
+% Pass the differenced speech signal twice through an ideal resonator at zero frequency. 
+y1 = x;
+y2 = x;
+
+for i=3:length(y)
+    y1(i) = 2*(y1(i - 1)) - y1(i - 2) + x(i);
+end
+
+for i=3:length(y)
+    y2(i) = 2*(y2(i - 1)) - y2(i - 2) + y1(i);
+end
+
+% Plot the output of the cascade of the two filters.
+figure()
+plot(t,y2);
+title('Output of cascade of two 0Hz resonators y_2[n]')
+xlabel('Time')
+
+% Removing the trend by subtracting the average of the 10ms sample
+
+winw = 0.005; % window sample interval 
+N = round(winw* length(y)/info.Duration);
+sum = zeros(1,length(y));
+
+for i = 1:length(y)
+    for m = 1:(2*N+1)
+        if (i-N+m <= 0)
+            sum(i) = 0;
+        elseif (i-N+m > length(y))
+            sum(i) = 0;
+        else
+            sum(i) = sum(i) + y2(i-N+m);
+        end
+    end
+end
+
+for i=1:length(y)
+    fir(i) = y2(i) - 1/(2*N+1)*sum(i);
+end 
+
+rum = zeros(1,length(y));
+
+for i = 1:length(y)
+    for m = 1:(2*N+1)
+        if (i-N+m <= 0)
+            rum(i) = 0;
+        elseif (i-N+m > 16808)
+            rum(i) = 0;
+        else
+            rum(i) = rum(i) + fir(i-N+m);
+        end
+    end
+end
+
+for i=1:length(y)
+    f(i) = fir(i) -1/(2*N+1)*rum(i);
+end
+% Plotting the positive zero crossings which are the 
+ZC = 0;
+imp = zeros(1,length(y));
+for k = 1:length(y)-2
+        if ((f(k) < 0) && (f(k + 1) > 0 ))
+            ZC = ZC + 1;
+            imp(k) = 1;
+        end
+end
+
+disp(ZC);
+
+% Plot the zero frequency filtered signal
+figure()
+plot(t(1:length(y)/2),f(1:length(y)/2));
+title('Zero-Frequency Filtered Signal f[n]')
+xlabel('Time')
+ylabel('Amplitude')
+
+% Plotting the epochs
+
+figure()
+plot(imp(1:length(y)));
+title('Epoch Locations')
+
+%% Segmental Analysis
+
+[y,Fs] = audioread('sed.wav');
+t = 0:1/Fs:info.Duration-1/Fs;
+
+segment = buffer(y,1600,0,'nodelay');
+samples = length(segment);
+ 
+for i = 2:length(y)
+    x(i) = y(i) - y(i-1) ; 
+end
+
+segment_x = buffer(x,1600,0,'nodelay');
+t1 = 6401/Fs:1/Fs:8000/Fs;
+t2 = 14401/Fs:1/Fs:16000/Fs;
+% Plot of the signal as well as the differenced speech signal 
+figure();
+subplot(2,1,1)
+plot(t1,segment(:,5));
+title('Segment 5')
+xlabel('Time')
+ylabel('Amplitude')
+hold on
+plot(t1,segment_x(:,5));
+legend('Original Signal y[n]','Differenced Signal x[n]')
+
+subplot(2,1,2)
+plot(t2,segment(:,10));
+title('Segment 10')
+xlabel('Time')
+ylabel('Amplitude')
+hold on
+plot(t2, segment_x(:,10));
+legend('Original Signal y[n]','Differenced Signal x[n]')
+
+% Pass the differenced speech signal twice through an ideal resonator at zero frequency. 
+y1 = x;
+y2 = x;
+
+for i=3:length(y)
+    y1(i) = 2*(y1(i - 1)) - y1(i - 2) + x(i);
+end
+
+for i=3:length(y)
+    y2(i) = 2*(y2(i - 1)) - y2(i - 2) + y1(i);
+end
+
+segment_y2 = buffer(y2,1600);
+
+% Plot the output of the cascade of the two filters.
+figure()
+subplot(2,1,1);
+plot(t1,segment_y2(:,5));
+title('Segment 5')
+subtitle('Output of cascade of two 0Hz resonators y_2[n]')
+xlabel('Time')
+
+subplot(2,1,2);
+plot(t2,segment_y2(:,10));
+title('Segment 10')
+subtitle('Output of cascade of two 0Hz resonators y_2[n]')
+xlabel('Time')
+
+
+% Removing the trend by subtracting the average of the 10ms sample
+
+winw = 0.005; % window sample interval 
+N = winw* length(y)/info.Duration;
+sum = zeros(1,length(y));
+
+for i = 1:length(y)
+    for m = 1:(2*N+1)
+        if (i-N+m <= 0)
+            sum(i) = 0;
+        elseif (i-N+m > length(y))
+            sum(i) = 0;
+        else
+            sum(i) = sum(i) + y2(i-N+m);
+        end
+    end
+end
+
+for i=1:length(y)
+    fir(i) = y2(i) - 1/(2*N+1)*sum(i);
+end 
+
+rum = zeros(1,length(y));
+
+for i = 1:length(y)
+    for m = 1:(2*N+1)
+        if (i-N+m <= 0)
+            rum(i) = 0;
+        elseif (i-N+m > 16808)
+            rum(i) = 0;
+        else
+            rum(i) = rum(i) + fir(i-N+m);
+        end
+    end
+end
+
+for i=1:length(y)
+    f(i) = fir(i) -1/(2*N+1)*rum(i);
+end
+
+ZC = 0;
+imp = zeros(1,length(y));
+for k = 1:length(y)-2
+        if ((f(k) < 0) && (f(k + 1) > 0 ))
+            ZC = ZC + 1;
+            imp(k) = 1;
+        end
+end
+
+segment_f =  buffer(f,1600);
+segment_imp = buffer(imp,1600);
+disp(ZC);
+
+% Plot the zero frequency filtered signal
+figure()
+subplot(2,1,1)
+plot(t1, segment_f(:,5));
+title('Segment 5')
+subtitle('Zero-Frequency Filtered Signal f[n]')
+xlabel('Time')
+ylabel('Amplitude')
+
+subplot(2,1,2)
+plot(t2,segment_f(:,10));
+title('Segment 10')
+subtitle('Zero-Frequency Filtered Signal f[n]')
+xlabel('Time')
+ylabel('Amplitude')
+
+%% Plot the epoch locations
+figure()
+subplot(2,1,1)
+plot(t1, segment_imp(:,5))
+title('Segment 5')
+subtitle('Epoch Locations')
+xlabel('time')
+
+subplot(2,1,2)
+plot(t2, segment_imp(:,10))
+title('Segment 10')
+subtitle('Epoch Locations')
+xlabel('time')
+
+%% Step-by-step Analysis
+
+% Segment 5
+figure()
+subplot(4,1,1)
+plot(t1,segment(:,5))
+title('Original Signal y[n]')
+
+subplot(4,1,2)
+plot(t1,segment_x(:,5))
+title('Differenced Speech Signal x[n]')
+
+subplot(4,1,3)
+plot(t1,segment_y2(:,5))
+title('Output of cascade of two 0Hz resonators y_2[n]')
+
+subplot(4,1,4)
+plot(t1,segment_f(:,5))
+title('Zero-Frequency Filtered Signal f[n]')
+
+% Segment 10
+figure()
+subplot(4,1,1)
+plot(t2,segment(:,10))
+title('Original Signal y[n]')
+
+subplot(4,1,2)
+plot(t2,segment_x(:,10))
+title('Differenced Speech Signal x[n]')
+
+subplot(4,1,3)
+plot(t2,segment_y2(:,10))
+title('Output of cascade of two 0Hz resonators y_2[n]')
+
+subplot(4,1,4)
+plot(t2,segment_f(:,10))
+title('Zero-Frequency Filtered Signal f[n]')
